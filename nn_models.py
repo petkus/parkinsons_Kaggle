@@ -78,6 +78,7 @@ def train_model(model, training_loader,
     optimizer = torch.optim.Adam(model.parameters())
 
     avg_losses = []
+    avg_precision_scores = []
     
     for epoch in range(epochs):  # loop over the dataset multiple times
         if verbose == 1:
@@ -86,6 +87,8 @@ def train_model(model, training_loader,
         else:
             train_iter = iter(training_loader)
 
+        avg_loss = 0
+        avg_score = 0
 
         for data in train_iter:
             model.train()
@@ -106,12 +109,19 @@ def train_model(model, training_loader,
 
             # record outputs
             avg_loss += loss.item()
+            predictions = model.predict(inputs).cpu()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                avg_score += average_precision_score(labels.cpu(), predictions)
             
         avg_loss /= len(training_loader)
-        print(f'Cross Validation {avg_loss}')
+        avg_score /= len(training_loader)
+        print(f'Loss {avg_loss}')
+        print(f'Score {avg_score}')
         avg_losses.append(avg_loss)
+        avg_precision_scores.append(avg_score)
     
-    return avg_losses
+    return avg_losses, avg_precision_scores
 
 def avg_precision_score(model, data_loader):
     model.eval()
