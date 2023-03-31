@@ -1,6 +1,6 @@
 # Parkinson's Freezing of Gait Prediction
 
-This repo is code for the [https://www.kaggle.com/competitions/tlvmc-parkinsons-freezing-gait-prediction/](Parkinson's Freezing of Gait Prediction Kaggle competition).
+This repo is code for the [Parkinson's Freezing of Gait Prediction Kaggle competition](https://www.kaggle.com/competitions/tlvmc-parkinsons-freezing-gait-prediction/).
 
 
 ## Description of Files/Folders
