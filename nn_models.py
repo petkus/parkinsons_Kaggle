@@ -66,7 +66,7 @@ class RNN(torch.nn.Module):
         self.eval()
         with torch.no_grad():
             output = self.forward(x)
-            return output[:, :3]
+            return torch.sigmoid(output[:, :3])
     
 
 def train_model(model, training_loader,
