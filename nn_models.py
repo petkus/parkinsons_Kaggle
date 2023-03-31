@@ -9,6 +9,7 @@ import torch
 from tqdm import tqdm
 from sklearn.metrics import average_precision_score
 import warnings
+from data_pipeline import DefogDataset
 
 
 DTYPE = torch.float
@@ -19,25 +20,6 @@ else:
 
 with open('config.yml', 'r') as file:
     config = yaml.safe_load(file)
-
-class DefogDataset(Dataset):
-    def __init__(self):
-        self.path = os.path.join(config['data_path'], 'train', 'tdcsfog')
-        self.ids = os.listdir(self.path)
-
-    def __len__(self):
-        return len(self.ids)
-
-    def __getitem__(self, idx):
-        id_path = os.path.join(self.path, self.ids[idx])
-        df = pd.read_csv(id_path)
-
-        df['None'] = 1 - df[['StartHesitation', 'Turn', 'Walking']].sum(axis=1)
-
-        X = torch.tensor(df[['AccV', 'AccML', 'AccAP']].values, dtype=DTYPE)
-        y = torch.tensor(df[['StartHesitation', 'Turn', 'Walking', 'None']].values, dtype=DTYPE)
-
-        return X, y
     
 
 class RNN(torch.nn.Module):
@@ -123,7 +105,10 @@ def train_model(model, training_loader,
     
     return avg_losses, avg_precision_scores
 
-def avg_precision_score(model, data_loader):
+def score_model(model, data_loader):
+    """
+        Gets the average precision score of model applied to dataloader
+    """
     model.eval()
 
     avg_score = 0

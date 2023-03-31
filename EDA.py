@@ -4,9 +4,80 @@ import seaborn as sns
 import os
 import matplotlib.pyplot as plt
 import yaml
+from tqdm import tqdm
 
 with open('config.yml', 'r') as file:
     config = yaml.safe_load(file)
+
+class Meta_Data():
+    def __init__(self):
+        """
+            metadata fields:
+            - defog
+            - tdcsfog
+            - daily
+            - subjects
+            - tasks
+            - events
+            - sample_submission
+        """
+
+        print("Loading metadata")
+        self.daily = pd.read_csv(config['data_path'] + 'daily_metadata.csv')
+        self.defog = pd.read_csv(config['data_path'] + 'defog_metadata.csv')
+        self.tdcsfog = pd.read_csv(config['data_path'] + 'tdcsfog_metadata.csv')
+
+        self.daily['Source'] = 'daily'
+        self.defog['Source'] = 'defog'
+        self.tdcsfog['Source'] = 'tdcsfog'
+
+        self.subjects = pd.read_csv(config['data_path'] + 'subjects.csv')
+        self.tasks = pd.read_csv(config['data_path'] + 'tasks.csv')
+
+        self.events = pd.read_csv(config['data_path'] + 'events.csv')
+
+        self.sample_submission = pd.read_csv(config['data_path'] + 'sample_submission.csv')
+
+        # Adding Target Totals
+        print("Adding totals for subjects")
+        self.subjects[['StartHesitation_Total', 'Turn_Total', 'Walking_Total']] = 0
+
+        for subject in tqdm(self.subjects.Subject):
+
+            # Getting all files with subject
+            df_subject = pd.concat([
+                self.tdcsfog.loc[self.tdcsfog.Subject == subject],
+                self.defog.loc[self.defog.Subject == subject],
+                self.daily.loc[self.daily.Subject == subject]
+            ])
+
+            # Adding up total target values for subject
+            for index, row in df_subject.iterrows():
+                if row['Source'] != 'daily':
+                    path = os.path.join(config['data_path'], 'train', row['Source'], f'{row["Id"]}.csv')
+                    if os.path.exists(path):
+                        df = pd.read_csv(path)
+                        totals = df[['StartHesitation', 'Turn', 'Walking']].sum()
+                        self.subjects.loc[self.subjects.Subject == subject, ['StartHesitation_Total', 'Turn_Total', 'Walking_Total']] += totals.values
+            self.subjects.loc[self.subjects.Subject == subject, ['StartHesitation_Total', 'Turn_Total', 'Walking_Total']]
+
+
+def plot_subject_velocity_data(subject, meta_data: Meta_Data):
+    df_subject = pd.concat([
+        meta_data.tdcsfog.loc[meta_data.tdcsfog.Subject == subject],
+        meta_data.defog.loc[meta_data.defog.Subject == subject],
+        meta_data.daily.loc[meta_data.daily.Subject == subject]
+    ])
+
+    print(f'subject {subject} has {len(df_subject)} entries')
+
+    for index, row in df_subject.iterrows():
+        if row['Source'] != 'daily':
+            path = os.path.join(config['data_path'], 'train', row['Source'], f'{row["Id"]}.csv')
+            if not os.path.exists(path):
+                path = path = os.path.join(config['data_path'], 'train', 'notype', f'{row["Id"]}.csv')
+            plot_velocity_data(path)
+
 
 def plot_velocity_data(file_path):
     name = os.path.basename(file_path)
@@ -92,6 +163,9 @@ def _get_bounds(indicators):
         output += [(left, right)]
     return output
         
+
+##################################### EXPERIMENTAL BELOW
+
 
 def generate_aggregate_statistics():
     df_agg = pd.DataFrame()
