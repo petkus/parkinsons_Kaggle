@@ -1,14 +1,9 @@
 import numpy as np 
 import pandas as pd 
-import seaborn as sns
 import os
-import matplotlib.pyplot as plt
 import yaml
 from torch.utils.data import Dataset
 import torch
-from tqdm import tqdm
-from sklearn.metrics import average_precision_score
-import warnings
 
 
 DTYPE = torch.float
@@ -36,6 +31,7 @@ class DefogDataset(Dataset):
 
         X = torch.tensor(df[['AccV', 'AccML', 'AccAP']].values, dtype=DTYPE)
         y = torch.tensor(df[['StartHesitation', 'Turn', 'Walking', 'None']].values, dtype=DTYPE)
+        return X,y
 
 
 

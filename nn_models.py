@@ -23,19 +23,29 @@ with open('config.yml', 'r') as file:
     
 
 class RNN(torch.nn.Module):
-    def __init__(self, hidden_size, num_layers, h0=None):
+    """
+        RNN
+    """
+    def __init__(self, hidden_size, num_layers, h0=None, bidirectional=False):
         super().__init__()
         input_size = 3
         output_size = 4
 
-        self.rnn = torch.nn.RNN(input_size, hidden_size, num_layers, dtype=DTYPE)
+        self.rnn = torch.nn.RNN(input_size, hidden_size, num_layers, dtype=DTYPE, bidirectional=bidirectional)
+
+        if bidirectional:
+            D = 2
+        else:
+            D = 1
         if h0 == None:
-            self.h0 = torch.nn.Parameter(torch.randn(num_layers, hidden_size, dtype=DTYPE))
+            self.h0 = torch.nn.Parameter(torch.randn(D*num_layers, hidden_size, dtype=DTYPE))
         else:
             assert h0.shape == (num_layers, hidden_size)
             assert h0.dtype == DTYPE
             self.h0 = torch.nn.Parameter(h0)
-        self.linear = torch.nn.Linear(hidden_size, output_size, dtype=DTYPE)
+        self.linear = torch.nn.Linear(D*hidden_size, output_size, dtype=DTYPE)
+
+        self.to(DEVICE)
 
         self.to(DEVICE)
 
@@ -49,9 +59,10 @@ class RNN(torch.nn.Module):
         with torch.no_grad():
             output = self.forward(x)
             return torch.sigmoid(output[:, :3])
-    
+
 
 def train_model(model, training_loader,
+                validation_loader = None,
                 epochs = 10,
                 verbose = 1,
                 ):
@@ -59,8 +70,13 @@ def train_model(model, training_loader,
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    avg_losses = []
-    avg_precision_scores = []
+    output = {}
+    output['avg_losses'] = []
+    output['avg_precision_scores'] = []
+
+    if validation_loader != None:
+        output['val_losses'] = []
+        output['val_avg_precision_scores'] = []
     
     for epoch in range(epochs):  # loop over the dataset multiple times
         if verbose == 1:
@@ -98,12 +114,24 @@ def train_model(model, training_loader,
             
         avg_loss /= len(training_loader)
         avg_score /= len(training_loader)
-        print(f'Loss {avg_loss}')
-        print(f'Score {avg_score}')
-        avg_losses.append(avg_loss)
-        avg_precision_scores.append(avg_score)
+        output['avg_losses'].append(avg_loss)
+        output['avg_precision_scores'].append(avg_score)
+        print(f'Training loss {avg_loss}')
+        print(f'Training score {avg_score}')
+
+        model.eval()
+        if validation_loader != None:
+            avg_loss = 0
+            for data in validation_loader:
+                inputs, labels = data
+                inputs = inputs.reshape((inputs.shape[1], -1)).to(DEVICE)
+                labels = labels.reshape((labels.shape[1], -1)).to(DEVICE)
+                avg_loss += criterion(outputs, labels).item()
+            output['val_losses'].append(avg_loss)
+            output['val_avg_precision_scores'].append(score_model(model, validation_loader))
+
     
-    return avg_losses, avg_precision_scores
+    return output
 
 def score_model(model, data_loader):
     """
